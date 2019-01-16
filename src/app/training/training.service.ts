@@ -7,10 +7,10 @@ import { AngularFirestore } from '@angular/fire/firestore';
 @Injectable()
 export class TrainingService {
     private availableExercises: Exercise[] = [];
-    private exercises: Exercise[] = [];
     private runningExercise: Exercise;
     changeExercise = new Subject<Exercise>();
     avaialbeExercisesChanged = new Subject<Exercise[]>();
+    finishedExercisesChanged = new Subject<Exercise[]>();
 
     constructor(private db: AngularFirestore){}
 
@@ -66,11 +66,16 @@ export class TrainingService {
         
     }
 
-    getExercises() {
-        return this.exercises.slice();
-    }
-
     private addExerciseInDb(exercise: Exercise) {
         this.db.collection("finishedExercises").add(exercise);
+    }
+
+    fetchFinishedExercises(){
+        this.db
+            .collection("finishedExercises")
+            .valueChanges()
+            .subscribe((finishedExercises: Exercise[])=>{
+                this.finishedExercisesChanged.next(finishedExercises);
+            });
     }
 }
