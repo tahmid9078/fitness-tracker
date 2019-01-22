@@ -1,8 +1,9 @@
 import { Exercise } from './exercise.model';
-import { Subject } from 'rxjs';
+import { Subject, Subscription } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Injectable } from '@angular/core';
 import { AngularFirestore } from '@angular/fire/firestore';
+import { UIService } from '../shared/ui-service';
 
 @Injectable()
 export class TrainingService {
@@ -11,11 +12,16 @@ export class TrainingService {
     changeExercise = new Subject<Exercise>();
     avaialbeExercisesChanged = new Subject<Exercise[]>();
     finishedExercisesChanged = new Subject<Exercise[]>();
+    private dbSubscriptions: Subscription[] = [];
 
-    constructor(private db: AngularFirestore){}
+    constructor(
+        private db: AngularFirestore,
+        private uiService: UIService
+        ){}
 
     fetchAvailableExercises() {
-        this.db.collection("availableExercises")
+        this.uiService.isLoadingChanged.next(true);
+        this.dbSubscriptions.push( this.db.collection("availableExercises")
                 .snapshotChanges()
                 .pipe(map(docArray => {
                     return docArray.map( doc =>{
@@ -25,8 +31,9 @@ export class TrainingService {
                     })
                 })).subscribe( (exercises: Exercise[]) => {
                     this.availableExercises = exercises;
+                    this.uiService.isLoadingChanged.next(false);
                     this.avaialbeExercisesChanged.next([...this.availableExercises]);
-                });
+                }));
                 
     }
 
@@ -71,11 +78,15 @@ export class TrainingService {
     }
 
     fetchFinishedExercises(){
-        this.db
+        this.dbSubscriptions.push( this.db
             .collection("finishedExercises")
             .valueChanges()
             .subscribe((finishedExercises: Exercise[])=>{
                 this.finishedExercisesChanged.next(finishedExercises);
-            });
+            }));
+    }
+
+    cancelSubscriptions() {
+        this.dbSubscriptions.forEach(subscription => subscription.unsubscribe());
     }
 }
